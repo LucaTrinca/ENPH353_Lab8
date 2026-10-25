@@ -13,6 +13,14 @@ from geometry_msgs.msg import Twist as RosTwist
 NUM_OBS_STATES = 3
 NUM_ACTIONS = 3
 
+# line brightness threshold
+LINE_THRESHOLD = 120
+
+# robot speeds used by process_action
+FORWARD_SPEED = 0.5  # m/s when going straight
+TURN_SPEED = 0.2     # m/s forward while turning
+TURN_RATE = 1.0      # rad/s when turning left or right
+
 class LineFollowerEnv(GazeboEnv):
     def __init__(self):
         # Intializing ROS2
@@ -140,8 +148,19 @@ class LineFollowerEnv(GazeboEnv):
         '''
         vel_cmd = RosTwist()
 
-        # TODO: Impelement process action.
-        
+        if action == 0:
+            # Turn left (positive angular.z turns counter-clockwise in ROS)
+            vel_cmd.linear.x = TURN_SPEED
+            vel_cmd.angular.z = TURN_RATE
+        elif action == 1:
+            # Go straight
+            vel_cmd.linear.x = FORWARD_SPEED
+            vel_cmd.angular.z = 0.0
+        elif action == 2:
+            # Turn right
+            vel_cmd.linear.x = TURN_SPEED
+            vel_cmd.angular.z = -TURN_RATE
+
         return vel_cmd
 
 
@@ -151,9 +170,15 @@ class LineFollowerEnv(GazeboEnv):
                a reward
         @retval reward: the reward for the current step
         '''
-        reward = 0
 
-        # TODO: Implement process reward.
+        reward = 0
+        if state == 1:
+            reward = 10   
+        if state == -1:
+            reward == -5
+
+
+        # TODO: Impleent process reward.
         
         return reward
 
@@ -174,7 +199,42 @@ class LineFollowerEnv(GazeboEnv):
         state = 0
         terminated = False
 
-        # TODO: Implement process observation
+        height, width, _ = cv_image.shape
+
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+
+        # Look at one row near the bottom of the image
+        scan_row = height - 60
+        row = gray[scan_row]
+
+        # The line is dark on a white floor, so find the x positions of all
+        # pixels in this row that are darker than the threshold
+        line_pixels = np.where(row < LINE_THRESHOLD)[0]
+
+        if len(line_pixels) == 0:
+            # No line in view
+            state = -1
+            terminated = True
+        else:
+            left_edge = line_pixels[0]
+            right_edge = line_pixels[-1]
+            center_x = (left_edge + right_edge) // 2
+
+            # Mark the edges in green and the line centre in red
+            cv2.circle(cv_image, (int(left_edge), scan_row), 5, (0, 255, 0), -1)
+            cv2.circle(cv_image, (int(right_edge), scan_row), 5, (0, 255, 0), -1)
+            cv2.circle(cv_image, (int(center_x), scan_row), 10, (0, 0, 255), -1)
+
+            # Split the image into thirds: 0 = left, 1 = center, 2 = right
+            if center_x < width / 3:
+                state = 0
+            elif center_x < 2 * width / 3:
+                state = 1
+            else:
+                state = 2
+
+        cv2.imshow("Line Follower", cv_image)
+        cv2.waitKey(1)
 
         return state, terminated
 

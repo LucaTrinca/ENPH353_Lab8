@@ -10,4 +10,4 @@ ros2_ws/install/
 # Tensorboard runs
 training_scripts/runs/
 
-.vscode/
+.vscode/gym-gazebo-sim-venv/

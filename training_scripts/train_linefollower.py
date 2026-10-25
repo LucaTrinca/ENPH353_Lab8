@@ -12,7 +12,7 @@ def main():
     observation_space = env.observation_space
     action_space = env.action_space
 
-    epsilon = 0.8
+    epsilon = 0.95
     epsilon_decay = 0.99
 
     q_table = np.zeros((observation_space.n, action_space.n))
@@ -49,6 +49,7 @@ def main():
             if total_reward > highest_reward:
                 highest_reward = total_reward
                 print("New highest reward: {total_reward}.")
+                saveQ(q_table, "q_table.txt")
 
             env.reset()
             epsilon = max(0.01, epsilon * epsilon_decay)  # Decay epsilon
@@ -57,6 +58,7 @@ def main():
         print("Training interrupted by user!")
     
     finally:
+        
         env.close()
         writer.flush()
         writer.close()
@@ -66,30 +68,36 @@ def learn(state, action, next_state, reward, q_table):
     alpha = 0.1
     gamma = 0.9
 
-    # TODO: Implement update Q values using the Bellman update equation
+    best_next_q = np.max(q_table[next_state])
+    td_target = reward + gamma * best_next_q
+    q_table[state, action] += alpha * (td_target - q_table[state, action])
 
     return q_table
 
 
 def choose_action(state, q_table, epsilon, action_space):
-    action = 0
+    if random.random() < epsilon:
+        # Explore pick a completely random action
+        action = action_space.sample()
+    else:
+        # Exploit
+        action = int(np.argmax(q_table[state]))
 
-    # TODO: Implement choose action.
-    
     return action
 
 
 def saveQ(q_table, save_path):
-
-    # TODO: Implement saving the Q values
-
-    return
+    # Plain text: one row per state, one column per action
+    np.savetxt(save_path, q_table, fmt="%.6f",
+               header="rows: states (left, center, right) | "
+                      "columns: actions (left, forward, right)")
+    print(f"Saved Q table to {save_path}")
 
 def loadQ(load_path):
-
-    # TODO: Implement loading the Q values
-
-    return
+    # loadtxt skips the "#" header line automatically
+    q_table = np.loadtxt(load_path)
+    print(f"Loaded Q table from {load_path}")
+    return q_table
 
 if __name__ == "__main__":
     main()

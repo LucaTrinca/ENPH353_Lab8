@@ -1,0 +1,4 @@
+# rows: states (left, center, right) | columns: actions (left, forward, right)
+82.401800 57.187167 59.510605
+85.380237 89.503686 85.933473
+38.846409 50.489407 82.699331
